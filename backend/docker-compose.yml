@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    image: demo/spring-app:latest
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - local-net
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:15
+    env_file:
+      - .env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - local-net
+volumes:
+  postgres-data:
+networks:
+  local-net:
+    driver: bridge
