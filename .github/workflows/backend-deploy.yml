@@ -56,4 +56,9 @@ jobs:
 
       # 6️⃣ Output image URI
       - name: Image pushed summary
-        run: echo "✅ Image pushed to: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          echo "✅ Image pushed to: ${REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
