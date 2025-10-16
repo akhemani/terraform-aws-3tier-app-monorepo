@@ -33,24 +33,14 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Get Angular project name dynamically
-        id: get_name
-        working-directory: frontend
-        run: |
-          APP_NAME=$(node -p "require('./angular.json').defaultProject")
-          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
-
       - name: Build Angular app
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
 
-      - name: List built Angular dist folder
-        run: ls -R frontend/dist
-
       - name: Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend/dist/${{ steps.get_name.outputs.app_name }}/browser
+          path: frontend/dist/frontend/browser
 
       - name: Deploy to GitHub Pages
         id: deployment
