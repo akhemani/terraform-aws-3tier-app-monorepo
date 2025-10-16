@@ -44,7 +44,11 @@ jobs:
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
 
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v1
         with:
-          folder: frontend/dist/${{ steps.get_name.outputs.app_name }}/browser
+          path: frontend/dist/${{ steps.get_name.outputs.app_name }}/browser
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
