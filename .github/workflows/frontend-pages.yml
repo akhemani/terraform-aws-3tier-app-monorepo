@@ -45,7 +45,7 @@ jobs:
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
 
       - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v2
         with:
           path: frontend/dist/${{ steps.get_name.outputs.app_name }}/browser
 
