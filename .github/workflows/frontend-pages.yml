@@ -9,10 +9,12 @@ on:
       - main
     paths:
       - 'frontend/**'
-      - '.github/workflows/frontend-deploy.yml'
+      - '.github/workflows/frontend-pages.yml'
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
@@ -35,19 +37,13 @@ jobs:
         id: get_name
         working-directory: frontend
         run: |
-          APP_NAME=$(node -p "require('./angular.json').defaultProject")
-          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "app_name=$(node -p \"require('./angular.json').defaultProject\")" >> $GITHUB_OUTPUT
 
       - name: Build Angular app
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
 
-      - name: Debug Show build output
-        run: ls -R frontend/dist
-
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: actions/deploy-pages@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: frontend/dist/frontend/browser
-          publish_branch: gh-pages
+          folder: frontend/dist/${{ steps.get_name.outputs.app_name }}/browser
