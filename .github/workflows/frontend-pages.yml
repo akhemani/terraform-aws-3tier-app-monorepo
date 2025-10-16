@@ -42,10 +42,12 @@ jobs:
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
 
+      - name: Debug Show build output
+        run: ls -R frontend/dist
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: frontend/dist/${{ steps.get_name.outputs.app_name }}
+          publish_dir: frontend/dist/frontend/browser
           publish_branch: gh-pages
-
