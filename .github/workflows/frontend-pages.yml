@@ -37,7 +37,8 @@ jobs:
         id: get_name
         working-directory: frontend
         run: |
-          echo "app_name=$(node -p \"require('./angular.json').defaultProject\")" >> $GITHUB_OUTPUT
+          APP_NAME=$(node -p "require('./angular.json').defaultProject")
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
 
       - name: Build Angular app
         working-directory: frontend
