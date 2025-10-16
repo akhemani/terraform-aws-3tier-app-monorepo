@@ -1,0 +1,8 @@
+<div class="container">
+  <h1>Frontend Demo</h1>
+  <h2>{{ welcomeMessage }}</h2>
+
+  <app-register-user (userAdded)="onUserAdded()"></app-register-user>
+
+  <app-list-users [users]="users"></app-list-users>
+</div>
