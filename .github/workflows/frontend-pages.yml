@@ -44,6 +44,9 @@ jobs:
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
 
+      - name: List built Angular dist folder
+        run: ls -R frontend/dist
+
       - name: Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
