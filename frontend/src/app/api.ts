@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = 'http://todo-app-alb-1727587440.us-east-1.elb.amazonaws.com'; // backend URL
+  private baseUrl = 'https://todo-app-alb-1727587440.us-east-1.elb.amazonaws.com'; // backend URL
 
   constructor(private http: HttpClient) {}
 
