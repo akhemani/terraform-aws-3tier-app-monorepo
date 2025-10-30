@@ -1,5 +1,12 @@
-    # Before this make sure:
-# ✅ GitHub Pages is enabled in your repo (Settings → Pages → Source: "Deploy from a branch")
+# ============================================================
+# 🚀 GitHub Actions: Deploy Angular Frontend to GitHub Pages
+# ------------------------------------------------------------
+# ✅ This workflow builds and deploys Angular app to GitHub Pages.
+# ✅ It’s configured for a custom domain (https://learnforge.site).
+# 💡 If later we remove the custom domain and want to use the
+#    GitHub Pages URL instead (like https://akhemani.github.io/terraform-aws-3tier-app-monorepo/),
+#    will just uncomment the old build command and comment out the current one.
+# ============================================================
 
 name: Deploy Angular Frontend to GitHub Pages
 
@@ -21,30 +28,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 📦 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: 📥 Install dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Build Angular app
+      # --------------------------------------------------------
+      # 🏗️ BUILD STEP
+      # For custom domain (https://learnforge.site)
+      # --------------------------------------------------------
+      - name: 🏗️ Build Angular app for Custom Domain
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/"
 
-      - name: Add CNAME file
+      # --------------------------------------------------------
+      # 🧩 If we want to deploy to GitHub Pages without a custom domain
+      # (https://akhemani.github.io/terraform-aws-3tier-app-monorepo/)
+      # uncomment the below block and comment the above one
+      # --------------------------------------------------------
+      # - name: 🏗️ Build Angular app for GitHub Pages
+      #   working-directory: frontend
+      #   run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
+
+      # --------------------------------------------------------
+      # 🪪 Add CNAME file for custom domain mapping
+      # --------------------------------------------------------
+      - name: 🪪 Add CNAME file
         run: echo "learnforge.site" > frontend/dist/frontend/browser/CNAME
 
-      - name: Upload artifact for GitHub Pages
+      - name: 📤 Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist/frontend/browser
 
-      - name: Deploy to GitHub Pages
+      - name: 🚀 Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
