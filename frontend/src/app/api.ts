@@ -11,7 +11,7 @@ export class ApiService {
   constructor(private http: HttpClient) {}
 
   getWelcome(): Observable<string> {
-    return this.http.get(`${this.baseUrl}/welcome`, { responseType: 'text' });
+    return this.http.get(`${this.baseUrl}`, { responseType: 'text' });
   }
 
   addUser(name: string): Observable<string> {
