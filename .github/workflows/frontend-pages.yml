@@ -1,4 +1,4 @@
-# Before this make sure:
+    # Before this make sure:
 # ✅ GitHub Pages is enabled in your repo (Settings → Pages → Source: "Deploy from a branch")
 
 name: Deploy Angular Frontend to GitHub Pages
@@ -36,6 +36,9 @@ jobs:
       - name: Build Angular app
         working-directory: frontend
         run: npm run build -- --configuration production --base-href="/${{ github.event.repository.name }}/"
+
+      - name: Add CNAME file
+        run: echo "learnforge.site" > frontend/dist/frontend/browser/CNAME
 
       - name: Upload artifact for GitHub Pages
         uses: actions/upload-pages-artifact@v3
