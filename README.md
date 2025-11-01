@@ -1,60 +1,64 @@
-# 🪜 Phase 1 — Core Network & Compute (Base Infrastructure)
+# 🪜 Phase 2 — Database, Secrets & Encryption (Data Layer Security)
 
-This Terraform project lays the **foundation of a secure 3-tier architecture on AWS**.  
-It builds the **VPC, subnets, internet & NAT gateways, route tables**, and deploys two EC2 instances (web + app).  
-Later phases will extend this with RDS, Secrets Manager, ECS, Load Balancer, and Route 53.
+This phase adds a **secure data layer** to the 3-tier AWS architecture built with Terraform.  
+It introduces **RDS (PostgreSQL)**, **AWS KMS** for encryption, and **Secrets Manager** for safely managing credentials.
 
 ---
 
-## 🎯 Project Objective
-Create a reliable, scalable, and secure **network & compute layer** using Terraform.
+## 🎯 Objective
 
-After applying this configuration, you’ll have:
-- 1 VPC  
-- 2 Public subnets (for web + future load balancer)  
-- 2 Private subnets (for app + database)  
-- Internet Gateway & NAT Gateway  
-- Proper route tables and associations  
-- Security groups for Web and App layers  
-- Two EC2 instances (web + app)
+To implement a **private, encrypted database layer** that:
+
+- Runs inside **private subnets** (no public exposure)
+- Uses a **randomly generated password**
+- Stores credentials securely in **AWS Secrets Manager**
+- Encrypts all data at rest using a **KMS Customer-Managed Key (CMK)**
 
 ---
 
 ## 📁 Directory Structure
 
-```phase-1/
-├── provider.tf # Provider configuration (AWS)
-├── variables.tf # Input variables (region, CIDRs, key pair)
-├── vpc.tf # VPC, subnets, gateways, routes
-├── security-groups.tf # Web & App security groups
-├── ec2.tf # EC2 instances (web & app)
-├── outputs.tf # Useful outputs (IPs, VPC ID)
-└── .gitignore # Excludes state files & secrets
+```phase-2/
+├── provider.tf # Terraform + provider configuration
+├── variables.tf # All configurable variables
+├── vpc.tf # VPC, subnets, gateways, routing
+├── security-groups.tf # Web, App, and RDS security groups
+├── ec2.tf # Web and App EC2 instances
+├── kms.tf # KMS key and alias for encryption
+├── secrets.tf # Random password + Secrets Manager
+├── rds.tf # RDS database, subnet group, security setup
+├── outputs.tf # Important outputs (IPs, ARNs, endpoints)
+└── .gitignore # Ignore state & sensitive files
 ```
 
 
 ---
 
-## ⚙️ What Each File Does
+## ⚙️ What Each File Does (What + Why)
 
-| File | What | Why |
-|------|------|-----|
-| **provider.tf** | Declares the AWS provider and region. | Tells Terraform where to create resources. |
-| **variables.tf** | Stores reusable inputs like region, subnet CIDRs, key pair name. | Makes configuration cleaner and easier to update. |
-| **vpc.tf** | Creates VPC, public/private subnets, Internet Gateway, NAT Gateway, Elastic IP, route tables, and associations. | Builds the core network architecture and defines traffic flow. |
-| **security-groups.tf** | Defines Web and App security groups and ingress/egress rules. | Controls which resources and ports are accessible. |
-| **ec2.tf** | Launches one public (Web) EC2 and one private (App) EC2. | Represents web and application layers. |
-| **outputs.tf** | Prints key outputs (e.g., public IP of web EC2). | Helps validate deployment quickly. |
-| **.gitignore** | Ignores tfstate, .tfvars, .pem files. | Prevents leaking credentials or state. |
+| File | What It Defines | Why It Matters |
+|------|------------------|----------------|
+| **provider.tf** | Declares Terraform, AWS, and Random providers. | Ensures Terraform knows which cloud and version to use. |
+| **variables.tf** | Holds all user-configurable inputs (region, CIDRs, key, DB details). | Makes configuration reusable and environment-agnostic. |
+| **vpc.tf** | Builds networking layer – VPC, subnets, gateways, routing. | Forms the base network where all resources reside. |
+| **security-groups.tf** | Creates Web, App, and RDS security groups. | Defines firewall boundaries between each layer. |
+| **ec2.tf** | Launches Web (public) and App (private) EC2 instances. | Simulates compute tiers for application logic. |
+| **kms.tf** | Creates and manages a KMS key with alias and rotation. | Encrypts RDS and Secrets data for compliance. |
+| **secrets.tf** | Generates a random password and stores it in Secrets Manager. | Removes plaintext credentials from code and state. |
+| **rds.tf** | Deploys encrypted PostgreSQL RDS instance in private subnets. | Provides secure, durable data persistence. |
+| **outputs.tf** | Exposes key outputs like RDS endpoint, secret ARN, KMS key ARN. | Helps quickly locate critical resource details. |
 
 ---
 
-## 🧠 Why This Phase Matters
-Phase 1 creates the **foundation** that all later services will depend on:
-- Networking isolation (public vs private).
-- Secure SSH & HTTP access.
-- Outbound internet from private subnets via NAT.
-- Tested EC2 compute layer for web and app services.
+## 🧠 Why This Phase Is Important
+
+In production, storing unencrypted data or plain passwords is a serious security risk.  
+Phase 2 ensures **data confidentiality, integrity, and compliance** by introducing:
+
+- 🔒 **KMS Encryption** — All sensitive data at rest is encrypted using a CMK.
+- 🧩 **Secrets Manager** — DB credentials are generated and stored securely.
+- 🗄️ **RDS in Private Subnets** — Database is isolated from public internet access.
+- 🔁 **Automatic Password Rotation Ready** — Passwords can be rotated easily without downtime.
 
 ---
 
@@ -64,50 +68,61 @@ Phase 1 creates the **foundation** that all later services will depend on:
    ```bash
    terraform init
 
-2. **Review the Execution Plan**
+2. **Validate configuration**
+   ```bash
+   terraform validate
+
+3. **Preview the plan**
    ```bash
    terraform plan
 
-1. **Apply the Configuration**
+4. **Apply the infrastructure**
    ```bash
    terraform apply
 
-4. **Destroy Resources**
+5. **Verify outputs**
    ```bash
-   terraform destroy
+   terraform output
 
-## 🧩 Validation Checklist
+# Validation Checklist
 
-| Test | Command | Expected Result |
-|------|---------|-----------------|
-| **SSH to Web EC2** | `ssh -i key.pem ubuntu@<web_public_ip>` | ✅ Connects successfully |
-| **Internet from Web EC2** | `curl https://google.com` | ✅ Works |
-| **Internet from App EC2 (via NAT)** | `ssh -i key.pem ubuntu@<web_public_ip>` → `ssh ubuntu@<app_private_ip>` → `sudo apt update` | ✅ Works |
-| **Routing Tables** | AWS Console → VPC → Route Tables | ✅ Public subnets route via **IGW**, Private subnets route via **NAT Gateway** |
+| Check                  | AWS Console Path                          | Expected Result                                      |
+|------------------------|-------------------------------------------|------------------------------------------------------|
+| RDS Subnet Group       | RDS → Subnet Groups                       | Lists both private subnets                           |
+| RDS Accessibility      | RDS → Connectivity                        | Publicly Accessible = ❌ No                          |
+| Encryption             | RDS → Configuration                       | Storage encryption = ✅ Enabled                      |
+| KMS Key                | KMS → Customer managed keys               | Key alias = `alias/todo-rds-kms`                    |
+| Secrets Manager        | Secrets Manager                           | Secret value contains username + password            |
+| Secret Encryption      | Secrets Manager → Encryption              | KMS key = your custom CMK                            |
+| Connectivity           | From App EC2 → `psql -h <endpoint>`       | Works internally via private network                 |
 
-### ✅ Notes:
-- Replace `<web_public_ip>` and `<app_private_ip>` with actual IP addresses from your AWS console.
-- Ensure your **security groups** and **key pair** allow SSH access.
-- Internet access in private subnets depends on proper **NAT Gateway** and **route table association**.
+## 🧹 Cleanup
 
-## 🔒 Security Notes
+Always destroy resources after testing to avoid ongoing AWS costs:
+```bash
+terraform destroy
+```
 
-* SSH (22) is allowed only from your IP in security-groups.tf.
+# Security Highlights
 
-* HTTP (80) is open to the public for testing.
-
-* App EC2 has no public IP and only accepts traffic from Web SG.
-
-* Terraform state and key files are excluded via .gitignore.
+| Component          | Security Measure                                           |
+|--------------------|------------------------------------------------------------|
+| Network            | RDS in private subnets (no public IP)                      |
+| Access Control     | Only App SG can talk to RDS SG                            |
+| Secrets            | Stored in AWS Secrets Manager (encrypted)                  |
+| Encryption         | KMS CMK for RDS storage + secrets                         |
+| IAM Principle      | Least-privilege best practices can be applied to secrets access |
 
 ## 🧭 Next Phase Preview
 
-**Phase 2 — Data & Secrets Layer**
+### Phase 3 — Application Delivery & Observability
 
-* Add RDS (PostgreSQL) in private subnets
+* Load Balancer (ALB)
 
-* Generate random passwords
+* ECS Cluster & Task Definition
 
-* Store credentials in AWS Secrets Manager
+* CloudWatch Logs & Monitoring
 
-* Encrypt data using KMS keys
+* Route 53 domain integration
+
+* Remote backend (S3 + DynamoDB state locking)
