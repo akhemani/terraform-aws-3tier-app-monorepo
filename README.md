@@ -1,129 +1,162 @@
-## 🪜 Phase 3 — Application Delivery & Observability (Compute & Access Layer)
+## 🧩 Bonus — Automate DNS, SSL & HTTPS with Terraform
 
-This phase adds the **application delivery and monitoring layer** on top of the secure data foundation built in Phase 2.  
-It introduces **ECS Fargate, Application Load Balancer (ALB), CloudWatch Logs,** and **Terraform remote backend** for reliable state management.
+This section shows how to fully automate everything you previously did through the AWS Console — including Route 53 DNS, SSL certificates (ACM), and ALB HTTPS listeners — **all with Terraform**.
 
-### 🎯 Objective
+You’ll have complete Infrastructure-as-Code (IaC) control: DNS, SSL, HTTPS, and redirection handled automatically, without any manual clicks.
 
-To deploy a **containerized backend application** securely and reliably using:
+### 🧩 Automate Route 53 DNS Records with Terraform
 
-* 🧱 ECS Fargate — serverless container orchestration (no EC2 management)
-* 🌐 Application Load Balancer — distributes HTTPS traffic to ECS tasks
-* 🪣 S3 + DynamoDB backend — stores and locks Terraform state remotely
-* 📊 CloudWatch Logs — centralized log management for ECS containers
-* 🔑 IAM Roles & Policies — granular access control for ECS tasks and execution
-
-### 📁 Directory Structure
+**Why this is required:**  
+Instead of manually creating DNS records in the AWS Console, Terraform lets you define them as code.
+This makes it easy to version-control, reuse, and reproduce your entire DNS setup for future projects or environments.
 ```
-phase-3/
-├── provider.tf           # Providers and region setup
-├── vpc.tf                # VPC, subnets, gateways, routing
-├── security-groups.tf    # Web, App, RDS, and ALB security groups
-├── ec2.tf                # Web EC2 instance (for bastion/admin access)
-├── ecs.tf                # ECS cluster, task definition, and service
-├── alb.tf                # Application Load Balancer (HTTP→HTTPS)
-├── rds.tf                # RDS PostgreSQL instance (encrypted)
-├── kms.tf                # KMS encryption key and alias
-├── secrets.tf            # Secrets Manager for DB credentials
-├── iam.tf                # IAM role lookup and optional task role
-├── cloudwatch.tf         # CloudWatch log group for ECS
-├── backend.tf            # Remote backend (S3 + DynamoDB state lock)
-├── variables.tf          # Input variables for parameters
-├── terraform.tfvars      # Real values (image, cert, etc.)
-├── outputs.tf            # ALB DNS, ECS service/cluster info
-└── .gitignore            # Ignore Terraform state & sensitive files
-```
-### ⚙️ What Each File Does (What + Why)
-| **File**                   | **What It Defines**                                    | **Why It Matters**                                         |
-|----------------------------|--------------------------------------------------------|-----------------------------------------------------------|
-| `provider.tf`               | Terraform & AWS provider setup.                        | Foundation for all resources.                              |
-| `vpc.tf`                    | Networking (VPC, subnets, gateways, routes).           | Provides networking base for ECS and ALB.                  |
-| `security-groups.tf`        | SGs for Web, ALB, App, and DB.                         | Enforces network isolation between layers.                 |
-| `ec2.tf`                    | Optional bastion/web EC2 instance.                     | Used for admin SSH or frontend hosting.                    |
-| `alb.tf`                    | Application Load Balancer, target group, and listeners (HTTP→HTTPS). | Provides secure and scalable external access.              |
-| `ecs.tf`                    | ECS Cluster, Task Definition, and Service.             | Runs and scales containerized backend app.                 |
-| `iam.tf`                    | Existing execution role lookup + task role creation.   | Grants ECS permissions to pull images and access AWS APIs. |
-| `rds.tf`                    | PostgreSQL database definition (encrypted).            | Connects backend with secure persistence.                  |
-| `kms.tf`                    | KMS CMK for encryption.                                | Encrypts secrets and RDS data.                             |
-| `secrets.tf`                | Random password + Secrets Manager.                     | Stores credentials safely outside code.                    |
-| `cloudwatch.tf`             | ECS log group with retention.                          | Enables centralized logging and debugging.                 |
-| `backend.tf`                | Remote Terraform state in S3 + DynamoDB.               | Ensures collaboration and state consistency.               |
-| `variables.tf / terraform.tfvars` | Configurable input variables.                         | Enables flexibility across environments.                   |
-| `outputs.tf`                | DNS, cluster, and service identifiers.                 | Helps locate critical outputs post-deployment.             |
+# route53.tf
+resource "aws_route53_zone" "main" {
+  name = "learnforge.site"
+}
 
+# A record for root domain → GitHub Pages IPs
+resource "aws_route53_record" "apex" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "learnforge.site"
+  type    = "A"
+  ttl     = 300
+  records = [
+    "185.199.108.153",
+    "185.199.109.153",
+    "185.199.110.153",
+    "185.199.111.153"
+  ]
+}
 
-### 🧠 Why This Phase Is Important
+# CNAME for www → GitHub Pages default
+resource "aws_route53_record" "www" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "www"
+  type    = "CNAME"
+  ttl     = 300
+  records = ["akhemani.github.io"]
+}
 
-Phase 3 enables **production-grade application delivery** with observability and resilience built-in.
+# Alias record for API → Application Load Balancer
+data "aws_lb" "app_alb" {
+  name = "todo-app-alb" # replace with your ALB name
+}
 
-* 🚀 ECS Fargate removes server management overhead.
-* 🔄 ALB + HTTPS ensures secure, load-balanced access.
-* 🔍 CloudWatch Logs centralizes logs for debugging and audits.
-* 🧩 S3 + DynamoDB backend makes Terraform operations safe for teams.
-* 🔒 IAM roles & policies enforce least-privilege access control.
+resource "aws_route53_record" "api" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "api"
+  type    = "A"
 
-### 🚀 How to Deploy
-
-**Initialize Terraform**
-```
-terraform init
+  alias {
+    name                   = data.aws_lb.app_alb.dns_name
+    zone_id                = data.aws_lb.app_alb.zone_id
+    evaluate_target_health = false
+  }
+}
 ```
 
-**Validate configuration**
+**What happens next:**  
+Running terraform apply will automatically create all Route 53 records — no console clicks needed.
+Your frontend and backend DNS setup will stay consistent across environments, and any future change can be tracked through Git commits.
+
+---
+
+## 🔐 Automate SSL & HTTPS for ALB via Terraform
+
+**Why this is required:**  
+To make your backend (api.learnforge.site) secure by default, you can use Terraform to request an ACM certificate and attach it to your Application Load Balancer automatically.
+This eliminates manual clicks in AWS Console and ensures your HTTPS setup is consistent, versioned, and reproducible.
 ```
-terraform validate
+# acm.tf
+resource "aws_acm_certificate" "api_cert" {
+  domain_name               = "api.learnforge.site"
+  subject_alternative_names = ["learnforge.site"]
+  validation_method          = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Automatically create DNS validation records
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.api_cert.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      record = dvo.resource_record_value
+    }
+  }
+
+  zone_id = aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.record]
+}
+
+# Wait for certificate validation
+resource "aws_acm_certificate_validation" "api_cert_validation" {
+  certificate_arn         = aws_acm_certificate.api_cert.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+# alb-listeners.tf
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.todo_app_alb.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate_validation.api_cert_validation.certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.todo_ecs_tg.arn
+  }
+}
+
+# Redirect HTTP to HTTPS
+resource "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.todo_app_alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
 ```
 
-**Preview the plan**
-```
-terraform plan
-```
+**What happens next:**  
+When you run terraform apply, it will automatically:
+* Request and validate an SSL certificate for your domain via ACM,
+* Attach it to your ALB’s HTTPS listener, and
+* Set up an automatic HTTP → HTTPS redirect.
 
-**Apply the infrastructure**
-```
-terraform apply
-```
+No manual steps are needed — you get a fully secured ALB with HTTPS enforced.
 
-**Verify outputs**
-```
-terraform output
-```
-### ✅ Validation Checklist
-| **Check**               | **AWS Console Path**                        | **Expected Result**                                        |
-|-------------------------|---------------------------------------------|-----------------------------------------------------------|
-| ALB DNS Name            | EC2 → Load Balancers                       | DNS name resolves publicly (`todo-app-alb-xxxx.elb.amazonaws.com`) |
-| Listeners               | EC2 → Load Balancers → Listeners           | HTTP → Redirect (HTTPS 443) ✅                             |
-| Target Group Health     | EC2 → Target Groups                        | All ECS tasks healthy ✅                                   |
-| ECS Cluster             | ECS → Clusters                             | Service = Running ✅                                       |
-| CloudWatch Logs         | CloudWatch → Log Groups                     | `/ecs/todo-app` contains app logs                          |
-| Secrets Access          | Secrets Manager                            | Secret `todo-rds-password` encrypted ✅                    |
-| KMS Key                 | KMS → Customer Managed Keys                | Alias `alias/todo-rds-kms` exists ✅                       |
-| Terraform State         | S3 → Bucket `my-3-tier-aws-terraform-state-bucket` | `terraform.tfstate` present ✅                              |
-| Lock Table              | DynamoDB → Tables `terraform-lock-table`    | Shows active lock entries ✅                               |
+---
 
-### 🧹 Cleanup
+### 🧱 Complete Terraform Integration Summary
+| **Component**                          | **Terraform File**     | **Purpose**                            |
+|----------------------------------------|------------------------|----------------------------------------|
+| Route 53 Hosted Zone + Records        | `route53.tf`           | Manages DNS for frontend & backend     |
+| ACM Certificate + Validation           | `acm.tf`               | Requests and validates SSL cert        |
+| ALB HTTPS Listeners                    | `alb-listeners.tf`     | Enforces HTTPS + redirects HTTP        |
+| ECS, RDS, and Networking (existing files) | (existing files)      | Application + database layer          |
 
-To destroy Phase 3 resources safely (leaving the S3 backend intact):
-```
-terraform destroy
-```
 
-⚠️ To remove the backend bucket or DynamoDB table, delete them manually in AWS Console (recommended only after full teardown).
+### 🏁 Final Result — 100% Automated Infrastructure
+✅ DNS (Route 53) → Infrastructure-as-code  
+✅ SSL (ACM) → Automatically issued & validated  
+✅ HTTPS (ALB) → Managed by Terraform  
+✅ CI/CD (GitHub Actions) → Automated frontend deployment  
+✅ Backend (ECS + RDS) → Secured & modularized  
 
-### 🔐 Security Highlights
-| **Component**           | **Security Measure**                             |
-|-------------------------|--------------------------------------------------|
-| ALB                     | HTTPS enabled with ACM certificate               |
-| Network                 | ALB → App SG → RDS SG path only                 |
-| ECS Tasks               | IAM roles restrict AWS API access               |
-| Secrets                 | Stored in Secrets Manager (KMS encrypted)        |
-| Terraform State         | Encrypted in S3 and locked via DynamoDB          |
-
-### 🧭 Next Phase Preview
-#### Phase 4 — Domain Integration & CI/CD Automation
-
-* Route 53 DNS records (frontend + backend)
-* GitHub Actions workflow for Terraform apply
-* ACM certificate auto-validation via Terraform
-* CI/CD pipeline triggered on push to main
-* Optional monitoring alerts and dashboards
+Your entire 3-tier application — frontend, backend, and domain setup — is now **fully automated, reproducible, and production-ready. 🚀**
